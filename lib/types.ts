@@ -169,3 +169,133 @@ export type TranslationRequestHandler = (
   scenario?: TranslationScenario,
   targetLanguage?: string
 ) => Promise<string>;
+
+// Practice tab types
+export type PracticeMode = 'quiz' | 'roleplay' | 'writing';
+
+export type QuizQuestionType = 'multiple-choice' | 'true-false';
+
+export interface QuizQuestion {
+  id: string;
+  type: QuizQuestionType;
+  question: string;
+  options?: string[]; // For multiple choice
+  correctAnswer: string;
+  explanation: string;
+  timestamp?: number; // Video timestamp for hints
+}
+
+export interface QuizAnswer {
+  questionId: string;
+  selectedAnswer: string;
+  isCorrect: boolean;
+}
+
+export interface PracticeQuizSettings {
+  numberOfQuestions: number;
+  difficulty: 'easy' | 'medium' | 'hard';
+  showTranscriptHints: boolean;
+}
+
+export interface PracticeRoleplaySettings {
+  scenario: string;
+  characterName: string;
+  characterDescription: string;
+  characterAvatar?: string;
+  goals: { id: string; text: string; completed: boolean }[];
+  grammarTarget: string;
+  vocabSet: string;
+}
+
+export type RoleplayVoice = 'alloy' | 'echo' | 'fable' | 'onyx' | 'nova' | 'shimmer' | 'sage' | 'amber' | 'ash' | 'coral' | 'jade';
+
+export interface RoleplayScenario {
+  title: string;
+  pitch: string;
+  instructions: string;
+}
+
+export interface RoleplayGoal {
+  id: string;
+  text: string;
+  completed: boolean;
+}
+
+export interface RoleplayCharacter {
+  name: string;
+  description: string;
+  avatar?: string;
+  voice: RoleplayVoice;
+  background: string;
+}
+
+export interface RoleplayMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  audioUrl?: string;
+  timestamp: number;
+}
+
+export interface RoleplayGoalEvaluation {
+  id: string;
+  completed: boolean;
+  strengths: string[];
+  improvements: string[];
+  tips: string[];
+}
+
+export interface RoleplayEvaluation {
+  overallSummary: string;
+  goals: RoleplayGoalEvaluation[];
+}
+
+export interface RoleplaySetup {
+  scenario: RoleplayScenario;
+  character: RoleplayCharacter;
+  goals: RoleplayGoal[];
+  openingInstruction: string;
+}
+
+export interface RoleplaySession {
+  id: string;
+  scenario: RoleplayScenario;
+  character: RoleplayCharacter;
+  messages: RoleplayMessage[];
+  goals: RoleplayGoal[];
+  startedAt: number;
+  endedAt?: number;
+}
+
+export interface PracticeWritingSettings {
+  prompt: string;
+  length: 'short' | 'medium' | 'long';
+  tone: 'casual' | 'formal' | 'academic';
+  requiredVocabulary: string[];
+  minWords: number;
+  maxWords: number;
+}
+
+// Writing (AI-powered) types
+export type WritingTone = 'casual' | 'formal' | 'academic';
+export type WritingLength = 'short' | 'medium' | 'long';
+
+export interface WritingPrompt {
+  title: string;
+  question: string;
+  constraints: string[];
+}
+
+export interface WritingSetup {
+  prompt: WritingPrompt;
+  suggestedVocab: string[];
+}
+
+export interface WritingFeedback {
+  strengths: string[];
+  improvements: string[];
+  actionableTips: string[];
+  suggestedRewrite: string;
+  vocabUsed: string[];
+  vocabMissed: string[];
+}

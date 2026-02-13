@@ -62,7 +62,8 @@ export async function middleware(request: NextRequest) {
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set(
     'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=()'
+    // Allow mic for in-browser STT; app code still only requests it in Practice/Roleplay.
+    'camera=(), microphone=(self), geolocation=()'
   );
 
   // Add HSTS header for production

@@ -5,13 +5,14 @@ import { TranscriptViewer } from "@/components/transcript-viewer";
 import { AIChat } from "@/components/ai-chat";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Languages, MessageSquare, PenLine } from "lucide-react";
+import { Languages, MessageSquare, PenLine, School } from "lucide-react";
 import { TranscriptSegment, Topic, Citation, Note, NoteSource, NoteMetadata, VideoInfo, TranslationRequestHandler } from "@/lib/types";
 import { SelectionActionPayload } from "@/components/selection-actions";
 import { NotesPanel, EditingNote } from "@/components/notes-panel";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageSelector } from "@/components/language-selector";
+import { PracticeTab } from "@/components/practice";
 
 const translationSelectorEnabled = (() => {
   const raw = process.env.NEXT_PUBLIC_ENABLE_TRANSLATION_SELECTOR;
@@ -63,6 +64,7 @@ export interface RightColumnTabsHandle {
   switchToTranscript: () => void;
   switchToChat?: () => void;
   switchToNotes: () => void;
+  switchToPractice?: () => void;
 }
 
 export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabsProps>(({
@@ -96,7 +98,7 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
   exportButtonState,
   onAddNote
 }, ref) => {
-  const [activeTab, setActiveTab] = useState<"transcript" | "chat" | "notes">("transcript");
+  const [activeTab, setActiveTab] = useState<"transcript" | "chat" | "notes" | "practice">("transcript");
   const showTranslationSelector = translationSelectorEnabled;
 
   // Expose methods to parent to switch tabs
@@ -111,6 +113,9 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
     },
     switchToNotes: () => {
       setActiveTab("notes");
+    },
+    switchToPractice: () => {
+      setActiveTab("practice");
     }
   }));
 
@@ -191,6 +196,20 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
           <PenLine className="h-4 w-4" />
           Notes
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setActiveTab("practice")}
+          className={cn(
+            "flex-1 justify-center gap-2 rounded-2xl",
+            activeTab === "practice"
+              ? "bg-neutral-100 text-foreground"
+              : "text-muted-foreground hover:text-foreground hover:bg-white/50"
+          )}
+        >
+          <School className="h-4 w-4" />
+          Practice
+        </Button>
       </div>
 
       <div className="flex-1 overflow-hidden relative">
@@ -245,6 +264,14 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
               onAddNote={onAddNote}
             />
           </TooltipProvider>
+        </div>
+        <div className={cn("absolute inset-0", activeTab !== "practice" && "hidden")}
+        >
+          <PracticeTab
+            topics={topics || []}
+            videoTitle={videoInfo?.title}
+            selectedLanguage={selectedLanguage}
+          />
         </div>
       </div>
     </Card>

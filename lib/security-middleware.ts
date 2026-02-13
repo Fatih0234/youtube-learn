@@ -127,7 +127,8 @@ export function withSecurity(
       );
       response.headers.set(
         'Permissions-Policy',
-        'camera=(), microphone=(), geolocation=()'
+        // Allow mic for in-browser STT; app code still only requests it in Practice/Roleplay.
+        'camera=(), microphone=(self), geolocation=()'
       );
 
       // Add CORS headers if needed (configure as per your requirements)

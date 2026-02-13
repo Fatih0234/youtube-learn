@@ -9,12 +9,12 @@ import { SUPPORTED_LANGUAGES, getLanguageName } from "@/lib/language-utils";
 import { cn } from "@/lib/utils";
 
 interface LanguageSelectorProps {
-  activeTab: "transcript" | "chat" | "notes";
+  activeTab: "transcript" | "chat" | "notes" | "practice";
   selectedLanguage: string | null;
   availableLanguages?: string[];
   currentSourceLanguage?: string;
   isAuthenticated?: boolean;
-  onTabSwitch: (tab: "transcript" | "chat" | "notes") => void;
+  onTabSwitch: (tab: "transcript" | "chat" | "notes" | "practice") => void;
   onLanguageChange?: (languageCode: string | null) => void;
   onRequestSignIn?: () => void;
 }
