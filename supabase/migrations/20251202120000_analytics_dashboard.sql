@@ -238,12 +238,12 @@ note_usage AS (
 ),
 favorite_usage AS (
   SELECT
-    DATE(uv.created_at) as date,
+    DATE(uv.accessed_at) as date,
     COUNT(*) FILTER (WHERE uv.is_favorite = true) as favorites_added,
     COUNT(DISTINCT uv.user_id) as users_favoriting
   FROM user_videos uv
   WHERE uv.is_favorite = true
-  GROUP BY DATE(uv.created_at)
+  GROUP BY DATE(uv.accessed_at)
 ),
 image_generations AS (
   SELECT

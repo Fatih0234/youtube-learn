@@ -271,19 +271,29 @@ $$;
 -- SECTION 5: CRON JOBS
 -- ============================================================================
 
--- Schedule email processing every minute
-SELECT cron.schedule(
-    'process-welcome-emails',
-    '* * * * *',  -- Every minute
-    $$SELECT public.process_welcome_emails();$$
-);
+-- pg_cron lives in the `cron` schema. It's not available in all Supabase plans/projects.
+-- If it isn't installed, skip scheduling (the app can still call these functions manually).
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+        -- Schedule email processing every minute
+        PERFORM cron.schedule(
+            'process-welcome-emails',
+            '* * * * *',  -- Every minute
+            $cron$SELECT public.process_welcome_emails();$cron$
+        );
 
--- Schedule response handling every minute
-SELECT cron.schedule(
-    'handle-welcome-email-responses',
-    '* * * * *',  -- Every minute
-    $$SELECT public.handle_welcome_email_responses();$$
-);
+        -- Schedule response handling every minute
+        PERFORM cron.schedule(
+            'handle-welcome-email-responses',
+            '* * * * *',  -- Every minute
+            $cron$SELECT public.handle_welcome_email_responses();$cron$
+        );
+    ELSE
+        RAISE NOTICE 'Skipping welcome email cron scheduling: schema \"cron\" is not available';
+    END IF;
+END
+$$;
 
 -- ============================================================================
 -- SECTION 6: ROW LEVEL SECURITY
@@ -320,11 +330,19 @@ END;
 $$;
 
 -- Schedule cleanup weekly (Sunday at 3 AM UTC)
-SELECT cron.schedule(
-    'cleanup-welcome-emails',
-    '0 3 * * 0',  -- Every Sunday at 3 AM UTC
-    $$SELECT public.cleanup_old_welcome_emails();$$
-);
+DO $$
+BEGIN
+    IF EXISTS (SELECT 1 FROM pg_namespace WHERE nspname = 'cron') THEN
+        PERFORM cron.schedule(
+            'cleanup-welcome-emails',
+            '0 3 * * 0',  -- Every Sunday at 3 AM UTC
+            $cron$SELECT public.cleanup_old_welcome_emails();$cron$
+        );
+    ELSE
+        RAISE NOTICE 'Skipping welcome email cleanup cron scheduling: schema \"cron\" is not available';
+    END IF;
+END
+$$;
 
 -- ============================================================================
 -- MIGRATION COMPLETE

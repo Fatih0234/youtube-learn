@@ -61,6 +61,11 @@ GRANT EXECUTE ON FUNCTION public.consume_topup_credit(uuid)
   TO authenticated, service_role;
 
 -- Aggregate usage in a window for faster API queries
+-- NOTE: Earlier migrations define get_usage_breakdown() with a different
+-- return type. Postgres can't CREATE OR REPLACE across return type changes,
+-- so we must drop it first.
+DROP FUNCTION IF EXISTS public.get_usage_breakdown(uuid, timestamptz, timestamptz);
+
 CREATE OR REPLACE FUNCTION public.get_usage_breakdown(
   p_user_id uuid,
   p_start timestamptz,
