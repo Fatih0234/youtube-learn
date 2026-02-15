@@ -2,7 +2,7 @@
   "crons": [
     {
       "path": "/api/cron/welcome-emails",
-      "schedule": "* * * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/welcome-emails-cleanup",
@@ -10,4 +10,3 @@
     }
   ]
 }
-
