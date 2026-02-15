@@ -49,6 +49,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const fromEmail = process.env.POSTMARK_FROM_EMAIL || 'zara@longcut.ai';
+  const messageStream = process.env.POSTMARK_MESSAGE_STREAM || 'outbound';
+
   try {
     // Parse and validate request body
     const body = await req.json();
@@ -96,11 +99,11 @@ export async function POST(req: NextRequest) {
     const client = new postmark.ServerClient(postmarkToken);
 
     const result = await client.sendEmail({
-      From: 'zara@longcut.ai',
+      From: fromEmail,
       To: email,
       Subject: getWelcomeSubject(),
       HtmlBody: getWelcomeHtmlBody(fullName),
-      MessageStream: 'outbound', // Transactional email stream
+      MessageStream: messageStream, // Transactional email stream
       TrackOpens: true,
       TrackLinks: LinkTrackingOptions.HtmlAndText,
     });

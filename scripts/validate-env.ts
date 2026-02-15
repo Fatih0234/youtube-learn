@@ -77,6 +77,12 @@ function validateRequiredEnvVars(): ValidationResult {
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     AI_PROVIDER: process.env.AI_PROVIDER ?? process.env.NEXT_PUBLIC_AI_PROVIDER,
     AI_DEFAULT_MODEL: process.env.AI_DEFAULT_MODEL ?? process.env.NEXT_PUBLIC_AI_MODEL,
+
+    // Optional but required if you enable welcome emails via Vercel Cron + Postmark.
+    CRON_SECRET: process.env.CRON_SECRET,
+    INTERNAL_API_KEY: process.env.INTERNAL_API_KEY,
+    POSTMARK_SERVER_TOKEN: process.env.POSTMARK_SERVER_TOKEN,
+    POSTMARK_FROM_EMAIL: process.env.POSTMARK_FROM_EMAIL,
   };
 
   for (const [key, value] of Object.entries(recommended)) {

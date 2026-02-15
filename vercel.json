@@ -1,0 +1,13 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/welcome-emails",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/welcome-emails-cleanup",
+      "schedule": "0 3 * * 0"
+    }
+  ]
+}
+
