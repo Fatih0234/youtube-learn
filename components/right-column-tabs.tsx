@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useImperativeHandle, forwardRef } from "react";
+import { useState, useEffect, useImperativeHandle, forwardRef, useCallback } from "react";
 import { TranscriptViewer } from "@/components/transcript-viewer";
 import { AIChat } from "@/components/ai-chat";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Languages, MessageSquare, PenLine, School } from "lucide-react";
-import { TranscriptSegment, Topic, Citation, Note, NoteSource, NoteMetadata, VideoInfo, TranslationRequestHandler } from "@/lib/types";
+import { TranscriptSegment, Topic, Citation, Note, NoteSource, NoteMetadata, VideoInfo, TranslationRequestHandler, FlashcardSession, FlashcardRating, Flashcard } from "@/lib/types";
 import { SelectionActionPayload } from "@/components/selection-actions";
 import { NotesPanel, EditingNote } from "@/components/notes-panel";
 import { cn } from "@/lib/utils";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageSelector } from "@/components/language-selector";
 import { PracticeTab } from "@/components/practice";
+import { reviewFlashcard } from "@/lib/flashcards-client";
 
 const translationSelectorEnabled = (() => {
   const raw = process.env.NEXT_PUBLIC_ENABLE_TRANSLATION_SELECTOR;
@@ -58,6 +59,13 @@ interface RightColumnTabsProps {
     isLoading?: boolean;
   };
   onAddNote?: () => void;
+  onAddToFlashcardsFromSelection?: (payload: SelectionActionPayload) => void;
+  flashcardRefreshTrigger?: number;
+  onSeekTo?: (seconds: number) => void;
+  flashcardSession?: FlashcardSession | null;
+  onStartFlashcardSession?: (queue: Flashcard[]) => void;
+  onExitFlashcardSession?: () => void;
+  onAdvanceFlashcardSession?: () => void;
 }
 
 export interface RightColumnTabsHandle {
@@ -96,9 +104,23 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
   currentSourceLanguage,
   onRequestExport,
   exportButtonState,
-  onAddNote
+  onAddNote,
+  onAddToFlashcardsFromSelection,
+  flashcardRefreshTrigger,
+  onSeekTo,
+  flashcardSession,
+  onStartFlashcardSession,
+  onExitFlashcardSession,
+  onAdvanceFlashcardSession,
 }, ref) => {
   const [activeTab, setActiveTab] = useState<"transcript" | "chat" | "notes" | "practice">("transcript");
+
+  const handleFlashcardRate = useCallback(async (rating: FlashcardRating) => {
+    const card = flashcardSession?.queue[flashcardSession.currentIndex];
+    if (!card) return;
+    await reviewFlashcard(card.id, rating);
+    onAdvanceFlashcardSession?.();
+  }, [flashcardSession, onAdvanceFlashcardSession]);
   const showTranslationSelector = translationSelectorEnabled;
 
   // Expose methods to parent to switch tabs
@@ -223,11 +245,15 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
             topics={topics}
             citationHighlight={citationHighlight}
             onTakeNoteFromSelection={onTakeNoteFromSelection}
+            onAddToFlashcardsFromSelection={onAddToFlashcardsFromSelection}
             videoId={videoId}
             selectedLanguage={selectedLanguage}
             onRequestTranslation={onRequestTranslation}
             onRequestExport={onRequestExport}
             exportButtonState={exportButtonState}
+            flashcardSession={flashcardSession}
+            onFlashcardRate={handleFlashcardRate}
+            onFlashcardExit={onExitFlashcardSession}
           />
         </div>
         <div className={cn("absolute inset-0", (activeTab !== "chat" || !showChatTab) && "hidden")}>
@@ -271,6 +297,21 @@ export const RightColumnTabs = forwardRef<RightColumnTabsHandle, RightColumnTabs
             topics={topics || []}
             videoTitle={videoInfo?.title}
             selectedLanguage={selectedLanguage}
+            videoId={videoId}
+            isAuthenticated={isAuthenticated}
+            onRequestSignIn={onRequestSignIn}
+            flashcardRefreshTrigger={flashcardRefreshTrigger}
+            transcript={transcript}
+            currentTime={currentTime}
+            onSeekTo={onSeekTo}
+            onStartFlashcardSession={onStartFlashcardSession}
+            flashcardSessionActive={!!flashcardSession?.isActive}
+            flashcardSessionProgress={
+              flashcardSession
+                ? { currentIndex: flashcardSession.currentIndex, total: flashcardSession.queue.length }
+                : null
+            }
+            onExitFlashcardSession={onExitFlashcardSession}
           />
         </div>
       </div>

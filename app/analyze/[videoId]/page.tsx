@@ -10,11 +10,12 @@ import { LoadingTips } from "@/components/loading-tips";
 import { VideoSkeleton } from "@/components/video-skeleton";
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { Topic, TranscriptSegment, VideoInfo, Citation, PlaybackCommand, Note, NoteSource, NoteMetadata, TopicCandidate, TopicGenerationMode, TranslationRequestHandler } from "@/lib/types";
+import { Topic, TranscriptSegment, VideoInfo, Citation, PlaybackCommand, Note, NoteSource, NoteMetadata, TopicCandidate, TopicGenerationMode, TranslationRequestHandler, Flashcard, FlashcardSession } from "@/lib/types";
 import { normalizeWhitespace } from "@/lib/quote-matcher";
 import { hydrateTopicsWithTranscript, normalizeTranscript } from "@/lib/topic-utils";
 import { SelectionActionPayload, EXPLAIN_SELECTION_EVENT } from "@/components/selection-actions";
 import { fetchNotes, saveNote } from "@/lib/notes-client";
+import { saveFlashcard } from "@/lib/flashcards-client";
 import { EditingNote } from "@/components/notes-panel";
 import { useModePreference } from "@/lib/hooks/use-mode-preference";
 import { useTranslation } from "@/lib/hooks/use-translation";
@@ -1751,6 +1752,8 @@ export default function AnalyzePage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [, setIsLoadingNotes] = useState(false);
   const [editingNote, setEditingNote] = useState<EditingNote | null>(null);
+  const [flashcardRefreshTrigger, setFlashcardRefreshTrigger] = useState(0);
+  const [flashcardSession, setFlashcardSession] = useState<FlashcardSession | null>(null);
 
   useEffect(() => {
     if (!videoId || !user) {
@@ -1819,6 +1822,56 @@ export default function AnalyzePage() {
       source: payload.source,
     });
   }, [promptSignInForNotes, user]);
+
+  const handleAddToFlashcardsFromSelection = useCallback(async (payload: SelectionActionPayload) => {
+    if (!user) {
+      promptSignInForNotes();
+      return;
+    }
+
+    const tStart = payload.metadata?.transcript?.start;
+    if (tStart == null || !videoId) {
+      toast.error("Could not determine timestamp for selection");
+      return;
+    }
+
+    try {
+      await saveFlashcard({
+        youtubeId: videoId,
+        selectedText: payload.text,
+        tStart: Math.floor(tStart),
+      });
+      setFlashcardRefreshTrigger(n => n + 1);
+      toast.success("Flashcard saved");
+    } catch {
+      toast.error("Failed to save flashcard");
+    }
+  }, [user, videoId, promptSignInForNotes]);
+
+  const startFlashcardSession = useCallback((queue: Flashcard[]) => {
+    if (queue.length === 0) return;
+    setFlashcardSession({ queue, currentIndex: 0, isActive: true });
+    requestSeek(queue[0].tStart);
+    rightColumnTabsRef.current?.switchToTranscript?.();
+  }, [requestSeek]);
+
+  const exitFlashcardSession = useCallback(() => {
+    setFlashcardSession(null);
+    setFlashcardRefreshTrigger(n => n + 1);
+  }, []);
+
+  const advanceFlashcardSession = useCallback(() => {
+    setFlashcardSession(prev => {
+      if (!prev) return null;
+      const nextIndex = prev.currentIndex + 1;
+      if (nextIndex >= prev.queue.length) {
+        setFlashcardRefreshTrigger(n => n + 1);
+        return null;
+      }
+      requestSeek(prev.queue[nextIndex].tStart);
+      return { ...prev, currentIndex: nextIndex };
+    });
+  }, [requestSeek]);
 
   const handleAddNote = useCallback(() => {
     if (!user) {
@@ -2082,6 +2135,9 @@ export default function AnalyzePage() {
                   notes={notes}
                   onSaveNote={handleSaveNote}
                   onTakeNoteFromSelection={handleTakeNoteFromSelection}
+                  onAddToFlashcardsFromSelection={handleAddToFlashcardsFromSelection}
+                  flashcardRefreshTrigger={flashcardRefreshTrigger}
+                  onSeekTo={requestSeek}
                   editingNote={editingNote}
                   onSaveEditingNote={handleSaveEditingNote}
                   onCancelEditing={handleCancelEditing}
@@ -2112,6 +2168,10 @@ export default function AnalyzePage() {
                   currentSourceLanguage={videoInfo?.language}
                   onRequestExport={handleRequestExport}
                   exportButtonState={exportButtonState}
+                  flashcardSession={flashcardSession}
+                  onStartFlashcardSession={startFlashcardSession}
+                  onExitFlashcardSession={exitFlashcardSession}
+                  onAdvanceFlashcardSession={advanceFlashcardSession}
                 />
               </div>
             </div>

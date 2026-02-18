@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { TranscriptSegment, Topic, Citation, TranslationRequestHandler } from "@/lib/types";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { TranscriptSegment, Topic, Citation, TranslationRequestHandler, FlashcardSession, FlashcardRating } from "@/lib/types";
 import { getTopicHSLColor, formatDuration } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/comp
 import { Badge } from "@/components/ui/badge";
 import { SelectionActions, triggerExplainSelection, SelectionActionPayload } from "@/components/selection-actions";
 import { NoteMetadata } from "@/lib/types";
+import { FlashcardSessionPanel } from "@/components/flashcard-session-panel";
 
 interface TranscriptViewerProps {
   transcript: TranscriptSegment[];
@@ -21,6 +22,7 @@ interface TranscriptViewerProps {
   topics?: Topic[];
   citationHighlight?: Citation | null;
   onTakeNoteFromSelection?: (payload: SelectionActionPayload) => void;
+  onAddToFlashcardsFromSelection?: (payload: SelectionActionPayload) => void;
   videoId?: string;
   selectedLanguage?: string | null;
   onRequestTranslation?: TranslationRequestHandler;
@@ -31,6 +33,9 @@ interface TranscriptViewerProps {
     badgeLabel?: string;
     isLoading?: boolean;
   };
+  flashcardSession?: FlashcardSession | null;
+  onFlashcardRate?: (rating: FlashcardRating) => Promise<void>;
+  onFlashcardExit?: () => void;
 }
 
 export function TranscriptViewer({
@@ -41,11 +46,15 @@ export function TranscriptViewer({
   topics = [],
   citationHighlight,
   onTakeNoteFromSelection,
+  onAddToFlashcardsFromSelection,
   videoId,
   selectedLanguage = null,
   onRequestTranslation,
   onRequestExport,
   exportButtonState,
+  flashcardSession,
+  onFlashcardRate,
+  onFlashcardExit,
 }: TranscriptViewerProps) {
   const highlightedRefs = useRef<(HTMLDivElement | null)[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -212,6 +221,57 @@ export function TranscriptViewer({
     });
   }, []);
 
+  // ── Flashcard session integration ──────────────────────────────────────────
+
+  // Derive the current flashcard being practiced
+  const flashcardCard = flashcardSession?.isActive
+    ? flashcardSession.queue[flashcardSession.currentIndex]
+    : null;
+
+  // Find the transcript segment closest to the flashcard's timestamp
+  const flashcardSegmentIndex = useMemo(() => {
+    if (!flashcardCard) return -1;
+    let best = -1;
+    let bestDiff = Infinity;
+    transcript.forEach((seg, idx) => {
+      const diff = Math.abs(seg.start - flashcardCard.tStart);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = idx;
+      }
+    });
+    return best;
+  }, [flashcardCard, transcript]);
+
+  // Compute context text for the back of the flashcard panel
+  const flashcardContextText = useMemo(() => {
+    if (!flashcardCard || flashcardSegmentIndex < 0) return '';
+    const start = Math.max(0, flashcardSegmentIndex - 1);
+    const end = Math.min(transcript.length - 1, flashcardSegmentIndex + 2);
+    return transcript.slice(start, end + 1).map(s => s.text).join(' ');
+  }, [flashcardCard, flashcardSegmentIndex, transcript]);
+
+  // When flashcard card changes, disable auto-scroll and scroll to that segment
+  useEffect(() => {
+    if (!flashcardCard) {
+      // Session ended — restore auto-scroll
+      setAutoScroll(true);
+      return;
+    }
+    setAutoScroll(false);
+    if (flashcardSegmentIndex >= 0) {
+      const element = document.querySelector(
+        `[data-segment-index="${flashcardSegmentIndex}"]`
+      ) as HTMLElement | null;
+      if (element) {
+        scrollToElement(element);
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flashcardCard?.id]);
+
+  // ── End flashcard session integration ──────────────────────────────────────
+
   // Search Logic
   useEffect(() => {
     if (!searchQuery.trim()) {
@@ -354,7 +414,23 @@ export function TranscriptViewer({
   };
 
 
-  const getHighlightedText = (segment: TranscriptSegment, segmentIndex: number): { highlightedParts: Array<{ text: string; highlighted: boolean; isCitation?: boolean; isSearchMatch?: boolean; isCurrentSearchMatch?: boolean }> } | null => {
+  const getHighlightedText = (segment: TranscriptSegment, segmentIndex: number): { highlightedParts: Array<{ text: string; highlighted: boolean; isCitation?: boolean; isSearchMatch?: boolean; isCurrentSearchMatch?: boolean; isFlashcard?: boolean }> } | null => {
+    // Priority 0: Flashcard word highlight (above search and citations)
+    if (flashcardCard && segmentIndex === flashcardSegmentIndex) {
+      const phrase = flashcardCard.selectedText.trim();
+      if (phrase) {
+        const escapedPhrase = phrase.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(`(${escapedPhrase})`, 'gi');
+        const parts = segment.text.split(regex);
+        const highlightedParts = parts.map(part => ({
+          text: part,
+          highlighted: part.toLowerCase() === phrase.toLowerCase(),
+          isFlashcard: part.toLowerCase() === phrase.toLowerCase(),
+        }));
+        return { highlightedParts };
+      }
+    }
+
     // Priority: Search > Citation/Topic
 
     // Check for search matches in this segment
@@ -787,6 +863,12 @@ export function TranscriptViewer({
                   source: 'transcript'
                 });
               }}
+              onAddToFlashcards={onAddToFlashcardsFromSelection ? (payload) => {
+                onAddToFlashcardsFromSelection({
+                  ...payload,
+                  source: 'transcript'
+                });
+              } : undefined}
               getMetadata={(range) => {
                 const metadata: NoteMetadata = {};
                 const startNode = range.startContainer.parentElement;
@@ -874,9 +956,17 @@ export function TranscriptViewer({
                             const isCurrentSearchMatch = 'isCurrentSearchMatch' in part && part.isCurrentSearchMatch;
                             const isCitation = 'isCitation' in part && part.isCitation;
 
+                            const isFlashcard = 'isFlashcard' in part && part.isFlashcard;
                             let style = undefined;
                             if (part.highlighted) {
-                              if (isSearchMatch) {
+                              if (isFlashcard) {
+                                style = {
+                                  backgroundColor: 'hsl(52, 100%, 75%)',
+                                  padding: '1px 3px',
+                                  borderRadius: '3px',
+                                  fontWeight: '600',
+                                };
+                              } else if (isSearchMatch) {
                                 style = {
                                   backgroundColor: isCurrentSearchMatch ? 'hsl(40, 100%, 50%)' : 'hsl(48, 100%, 80%)',
                                   color: isCurrentSearchMatch ? 'white' : 'black',
@@ -954,6 +1044,18 @@ export function TranscriptViewer({
             )}
           </div>
         </ScrollArea>
+
+        {/* Flashcard session panel — sticky at the bottom of the transcript column */}
+        {flashcardCard && onFlashcardRate && onFlashcardExit && (
+          <FlashcardSessionPanel
+            card={flashcardCard}
+            currentIndex={flashcardSession!.currentIndex}
+            total={flashcardSession!.queue.length}
+            contextText={flashcardContextText}
+            onRate={onFlashcardRate}
+            onExit={onFlashcardExit}
+          />
+        )}
       </div>
     </TooltipProvider>
   );

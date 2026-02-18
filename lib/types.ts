@@ -170,8 +170,40 @@ export type TranslationRequestHandler = (
   targetLanguage?: string
 ) => Promise<string>;
 
+// Flashcard types
+export interface Flashcard {
+  id: string;
+  userId: string;
+  videoId: string;
+  youtubeId: string;
+  selectedText: string;
+  tStart: number;
+  dueAt: string;
+  intervalDays: number;
+  ease: number;
+  reps: number;
+  lapses: number;
+  lastReviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FlashcardStats {
+  total: number;
+  newToday: number;
+  dueToday: number;
+}
+
+export type FlashcardRating = 'again' | 'hard' | 'good' | 'easy';
+
+export interface FlashcardSession {
+  queue: Flashcard[];
+  currentIndex: number;
+  isActive: boolean;
+}
+
 // Practice tab types
-export type PracticeMode = 'quiz' | 'roleplay' | 'writing';
+export type PracticeMode = 'quiz' | 'roleplay' | 'writing' | 'flashcards';
 
 export type QuizQuestionType = 'multiple-choice' | 'true-false';
 

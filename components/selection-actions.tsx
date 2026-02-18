@@ -28,6 +28,7 @@ interface SelectionActionsProps {
   containerRef: React.RefObject<HTMLElement | null>;
   onExplain?: (payload: SelectionActionPayload) => void;
   onTakeNote?: (payload: SelectionActionPayload) => void;
+  onAddToFlashcards?: (payload: SelectionActionPayload) => void;
   getMetadata?: (range: Range) => NoteMetadata | undefined | null;
   disabled?: boolean;
   source?: SelectionActionPayload["source"];
@@ -43,6 +44,7 @@ export function SelectionActions({
   containerRef,
   onExplain,
   onTakeNote,
+  onAddToFlashcards,
   getMetadata,
   disabled,
   source,
@@ -157,7 +159,7 @@ export function SelectionActions({
     return null;
   }
 
-  const handleAction = async (action: "explain" | "note") => {
+  const handleAction = async (action: "explain" | "note" | "flashcard") => {
     if (!latestSelectionRef.current) return;
     const { text, metadata: selectionMetadata } = latestSelectionRef.current;
     const metadata: NoteMetadata = selectionMetadata
@@ -175,6 +177,8 @@ export function SelectionActions({
         await onExplain(payload);
       } else if (action === "note" && onTakeNote) {
         await onTakeNote(payload);
+      } else if (action === "flashcard" && onAddToFlashcards) {
+        await onAddToFlashcards(payload);
       }
     } finally {
       setIsProcessing(false);
@@ -224,6 +228,20 @@ export function SelectionActions({
             onClick={() => handleAction("note")}
           >
             Take Notes
+          </Button>
+        )}
+        {onAddToFlashcards && (onExplain || onTakeNote) && (
+          <div className="h-6 w-px bg-border/60" />
+        )}
+        {onAddToFlashcards && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2.5 text-sm font-normal rounded-lg transition-all duration-200 hover:bg-primary/10 hover:scale-105 hover:text-foreground"
+            disabled={isProcessing}
+            onClick={() => handleAction("flashcard")}
+          >
+            + Flashcard
           </Button>
         )}
       </Card>
